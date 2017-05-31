@@ -225,7 +225,7 @@ public class BitbucketSCMNavigator extends SCMNavigator {
             listener.getLogger().format("Connecting to %s using %s%n", bitbucketUrl(), CredentialsNameProvider.name(credentials));
         }
         List<? extends BitbucketRepository> repositories;
-        BitbucketApi bitbucket = BitbucketApiFactory.newInstance(bitbucketServerUrl, credentials, repoOwner, null);
+        BitbucketApi bitbucket = BitbucketApiFactory.newInstance(bitbucketServerUrl, credentials, repoOwner, null, skipVerifySsl);
         BitbucketTeam team = bitbucket.getTeam();
         if (team != null) {
             // Navigate repositories of the team
@@ -296,7 +296,7 @@ public class BitbucketSCMNavigator extends SCMNavigator {
                     serverUrl,
                     CredentialsNameProvider.name(credentials));
         }
-        BitbucketApi bitbucket = BitbucketApiFactory.newInstance(bitbucketServerUrl, credentials, repoOwner, null);
+        BitbucketApi bitbucket = BitbucketApiFactory.newInstance(bitbucketServerUrl, credentials, repoOwner, null, skipVerifySsl);
         BitbucketTeam team = bitbucket.getTeam();
         if (team != null) {
             String teamUrl =

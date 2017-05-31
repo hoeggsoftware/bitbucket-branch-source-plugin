@@ -47,6 +47,7 @@ public abstract class BitbucketApiFactory implements ExtensionPoint {
      * @param credentials the (optional) credentials.
      * @param owner       the owner name.
      * @param repository  the (optional) repository name.
+     * @param skipVerifySsl
      * @return the {@link BitbucketApi}.
      * @throws IllegalArgumentException if the supplied URL is not supported.
      */
@@ -54,7 +55,7 @@ public abstract class BitbucketApiFactory implements ExtensionPoint {
     public static BitbucketApi newInstance(@Nullable String serverUrl,
                                            @Nullable StandardUsernamePasswordCredentials credentials,
                                            @NonNull String owner,
-                                           @CheckForNull String repository) {
+                                           @CheckForNull String repository, boolean skipVerifySsl) {
         for (BitbucketApiFactory factory : ExtensionList.lookup(BitbucketApiFactory.class)) {
             if (factory.isMatch(serverUrl)) {
                 return factory.create(serverUrl, credentials, owner, repository);

@@ -146,6 +146,11 @@ public class BitbucketSCMSource extends SCMSource {
     private boolean autoRegisterHook = false;
 
     /**
+     * If true, will skip ssl verification when calling repository for BitbucketServer
+     */
+    private boolean skipVerifySsl = false;
+
+    /**
      * Bitbucket Server URL.
      * An specific HTTP client is used if this field is not null.
      */
@@ -236,6 +241,15 @@ public class BitbucketSCMSource extends SCMSource {
     }
 
     @DataBoundSetter
+    public void setSkipVerifySsl(boolean skipVerifySsl) {
+        this.skipVerifySsl = skipVerifySsl;
+    }
+
+    public boolean isSkipVerifySsl() {
+        return skipVerifySsl;
+    }
+
+    @DataBoundSetter
     public void setBitbucketServerUrl(String url) {
         this.bitbucketServerUrl = Util.fixEmpty(url);
         if (this.bitbucketServerUrl != null) {
@@ -296,11 +310,11 @@ public class BitbucketSCMSource extends SCMSource {
     }
 
     public BitbucketApi buildBitbucketClient() {
-        return BitbucketApiFactory.newInstance(bitbucketServerUrl, getScanCredentials(), repoOwner, repository);
+        return BitbucketApiFactory.newInstance(bitbucketServerUrl, getScanCredentials(), repoOwner, repository, skipVerifySsl);
     }
 
     public BitbucketApi buildBitbucketClient(PullRequestSCMHead head) {
-        return BitbucketApiFactory.newInstance(bitbucketServerUrl, getScanCredentials(), head.getRepoOwner(), head.getRepository());
+        return BitbucketApiFactory.newInstance(bitbucketServerUrl, getScanCredentials(), head.getRepoOwner(), head.getRepository(), skipVerifySsl);
     }
 
     @Override
@@ -436,7 +450,7 @@ public class BitbucketSCMSource extends SCMSource {
         if (isExcluded(branchName)) {
             return;
         }
-        final BitbucketApi bitbucket = BitbucketApiFactory.newInstance(bitbucketServerUrl, getScanCredentials(), owner, repositoryName);
+        final BitbucketApi bitbucket = BitbucketApiFactory.newInstance(bitbucketServerUrl, getScanCredentials(), owner, repositoryName, skipVerifySsl);
 
         if (criteria != null) {
             SCMSourceCriteria.Probe probe = new SCMSourceCriteria.Probe() {
