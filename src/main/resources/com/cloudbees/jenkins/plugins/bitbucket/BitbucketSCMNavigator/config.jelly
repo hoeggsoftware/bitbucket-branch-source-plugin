@@ -26,5 +26,8 @@
         <f:entry title="${%Bitbucket Server URL}" field="bitbucketServerUrl">
           <f:textbox />
         </f:entry>
+        <f:entry field="skipVerifySsl">
+          <f:checkbox title="${%Skip SSL certificate verification}" />
+        </f:entry>
     </f:advanced>
 </j:jelly>

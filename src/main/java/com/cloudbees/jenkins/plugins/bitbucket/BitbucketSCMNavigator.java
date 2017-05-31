@@ -73,6 +73,8 @@ public class BitbucketSCMNavigator extends SCMNavigator {
     private String pattern = ".*";
     private boolean autoRegisterHooks = false;
     private String bitbucketServerUrl;
+    private boolean skipVerifySsl = false;
+
     /**
      * Ant match expression that indicates what branches to include in the retrieve process.
      */
@@ -131,6 +133,15 @@ public class BitbucketSCMNavigator extends SCMNavigator {
 
     public String getRepoOwner() {
         return repoOwner;
+    }
+
+    @DataBoundSetter
+    public void setSkipVerifySsl(boolean skipVerifySsl) {
+        this.skipVerifySsl = skipVerifySsl;
+    }
+
+    public boolean getSkipVerifySsl() {
+        return this.skipVerifySsl;
     }
 
     @CheckForNull
