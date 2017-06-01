@@ -29,12 +29,15 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.cloudbees.jenkins.plugins.bitbucket.api.BitbucketApiFactory;
 import com.cloudbees.jenkins.plugins.bitbucket.api.BitbucketRepositoryType;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import hudson.ExtensionList;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -53,16 +56,33 @@ public class SCMNavigatorTest {
 
     @ClassRule
     public static JenkinsRule j = new JenkinsRule();
+    private BitbucketSCMNavigator navigator;
+    private SCMSourceObserverImpl observer;
+
+    @Before
+    public void configureTestServerUrl() throws IOException, InterruptedException {
+        BitbucketMockApiFactory.add("http://bitbucket.test",
+            BitbucketClientMockUtils.getAPIClientMock(BitbucketRepositoryType.GIT, true));
+        navigator = new BitbucketSCMNavigator("myteam", null, null);
+        navigator.setPattern("repo(.*)");
+        navigator.setBitbucketServerUrl("http://bitbucket.test");
+        observer = new SCMSourceObserverImpl(BitbucketClientMockUtils.getTaskListenerMock(),
+            Mockito.mock(SCMSourceOwner.class));
+    }
+
+    @Test
+    public void configurationShouldBeUsedWhenCreatingApi() throws IOException, InterruptedException {
+        navigator.setSkipVerifySsl(true);
+        navigator.visitSources(observer);
+
+        BitbucketMockApiFactory.CreateArguments args = ExtensionList
+            .lookup(BitbucketApiFactory.class).get(BitbucketMockApiFactory.class)
+            .getCreateArguments("http://bitbucket.test");
+        assertEquals("skipVerifySsl", true, args.skipVerifySsl);
+    }
 
     @Test
     public void teamRepositoriesDiscovering() throws IOException, InterruptedException {
-        BitbucketMockApiFactory.add("http://bitbucket.test",
-                BitbucketClientMockUtils.getAPIClientMock(BitbucketRepositoryType.GIT, true));
-        BitbucketSCMNavigator navigator = new BitbucketSCMNavigator("myteam", null, null);
-        navigator.setPattern("repo(.*)");
-        navigator.setBitbucketServerUrl("http://bitbucket.test");
-        SCMSourceObserverImpl observer = new SCMSourceObserverImpl(BitbucketClientMockUtils.getTaskListenerMock(),
-                Mockito.mock(SCMSourceOwner.class));
         navigator.visitSources(observer);
 
         assertEquals("myteam", navigator.getRepoOwner());
