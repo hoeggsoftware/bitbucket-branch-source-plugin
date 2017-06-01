@@ -25,7 +25,6 @@ package com.cloudbees.jenkins.plugins.bitbucket.server.client;
 
 import com.cloudbees.jenkins.plugins.bitbucket.api.BitbucketRepositoryProtocol;
 import com.cloudbees.jenkins.plugins.bitbucket.api.BitbucketRepositoryType;
-import com.sun.mail.iap.Protocol;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.FileNotFoundException;
@@ -51,6 +50,7 @@ import org.apache.commons.httpclient.contrib.ssl.EasySSLProtocolSocketFactory;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
+import org.apache.commons.httpclient.protocol.Protocol;
 import org.apache.commons.httpclient.protocol.ProtocolSocketFactory;
 import org.apache.tools.ant.taskdefs.Jar;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -162,6 +162,10 @@ public class BitbucketServerAPIClient implements BitbucketApi {
         this.skipVerifySsl = skipVerifySsl;
     }
 
+
+    public BitbucketServerAPIClient(String baseURL, String owner, String repositoryName, StandardUsernamePasswordCredentials creds, boolean userCentric) {
+        this(baseURL, owner, repositoryName, creds, userCentric, false);
+    }
     /**
      * Bitbucket Server manages two top level entities, owner and/or project.
      * Only one of them makes sense for a specific client object.
@@ -488,8 +492,8 @@ public class BitbucketServerAPIClient implements BitbucketApi {
     }
 
     private String getRequest(String path) throws IOException {
-        HostConfiguration hostConfigration = getHostConfiguration(skipVerifySsl);
         GetMethod httpget = new GetMethod(this.baseURL + path);
+        HostConfiguration hostConfigration = getHostConfiguration(getMethodHost(httpget), skipVerifySsl);
         HttpClient client = getHttpClient(getMethodHost(httpget));
         try {
             client.executeMethod(hostConfigration, httpget);
@@ -523,13 +527,13 @@ public class BitbucketServerAPIClient implements BitbucketApi {
         return client;
     }
 
-    private HostConfiguration getHostConfiguration(boolean skipVerifySsl) {
-        HostConfiguration host = new HostConfiguration();
+    private HostConfiguration getHostConfiguration(String host, boolean skipVerifySsl) {
+        HostConfiguration hostConfig = new HostConfiguration();
         if (skipVerifySsl) {
-            Protocol easyHttps = new Protocol("https", ProtocolSocketFactory)new EasySSLProtocolSocketFactory(), 443);
-            host.setHost(host, 443, easyHttps);
+            Protocol easyHttps = new Protocol("https", new EasySSLProtocolSocketFactory(), 443);
+            hostConfig.setHost(host, 443, easyHttps);
         }
-        return host;
+        return hostConfig;
     }
 
     private static void setClientProxyParams(String host, HttpClient client) {
