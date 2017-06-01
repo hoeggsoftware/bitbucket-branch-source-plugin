@@ -25,6 +25,7 @@ package com.cloudbees.jenkins.plugins.bitbucket.server.client;
 
 import com.cloudbees.jenkins.plugins.bitbucket.api.BitbucketRepositoryProtocol;
 import com.cloudbees.jenkins.plugins.bitbucket.api.BitbucketRepositoryType;
+import com.sun.mail.iap.Protocol;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.FileNotFoundException;
@@ -46,9 +47,12 @@ import org.apache.commons.httpclient.NameValuePair;
 import org.apache.commons.httpclient.UsernamePasswordCredentials;
 import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.auth.AuthScope;
+import org.apache.commons.httpclient.contrib.ssl.EasySSLProtocolSocketFactory;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
+import org.apache.commons.httpclient.protocol.ProtocolSocketFactory;
+import org.apache.tools.ant.taskdefs.Jar;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.cloudbees.jenkins.plugins.bitbucket.api.BitbucketApi;
@@ -79,6 +83,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -134,6 +139,11 @@ public class BitbucketServerAPIClient implements BitbucketApi {
     private boolean userCentric = false;
 
     /**
+     * Indicates that the client should skip ssl verification
+     */
+    private boolean skipVerifySsl = false;
+
+    /**
      * Credentials to access API services.
      * Almost @NonNull (but null is accepted for anonymous access).
      */
@@ -141,7 +151,7 @@ public class BitbucketServerAPIClient implements BitbucketApi {
 
     private String baseURL;
 
-    public BitbucketServerAPIClient(String baseURL, String owner, String repositoryName, StandardUsernamePasswordCredentials creds, boolean userCentric) {
+    public BitbucketServerAPIClient(String baseURL, String owner, String repositoryName, StandardUsernamePasswordCredentials creds, boolean userCentric, boolean skipVerifySsl) {
         if (creds != null) {
             this.credentials = new UsernamePasswordCredentials(creds.getUsername(), Secret.toString(creds.getPassword()));
         }
@@ -149,6 +159,7 @@ public class BitbucketServerAPIClient implements BitbucketApi {
         this.owner = owner;
         this.repositoryName = repositoryName;
         this.baseURL = baseURL;
+        this.skipVerifySsl = skipVerifySsl;
     }
 
     /**
@@ -477,10 +488,11 @@ public class BitbucketServerAPIClient implements BitbucketApi {
     }
 
     private String getRequest(String path) throws IOException {
+        HostConfiguration hostConfigration = getHostConfiguration(skipVerifySsl);
         GetMethod httpget = new GetMethod(this.baseURL + path);
         HttpClient client = getHttpClient(getMethodHost(httpget));
         try {
-            client.executeMethod(httpget);
+            client.executeMethod(hostConfigration, httpget);
             String response = new String(httpget.getResponseBody(), "UTF-8");
             if (httpget.getStatusCode() == HttpStatus.SC_NOT_FOUND) {
                 throw new FileNotFoundException("URL: " + path);
@@ -509,6 +521,15 @@ public class BitbucketServerAPIClient implements BitbucketApi {
 
         setClientProxyParams(host, client);
         return client;
+    }
+
+    private HostConfiguration getHostConfiguration(boolean skipVerifySsl) {
+        HostConfiguration host = new HostConfiguration();
+        if (skipVerifySsl) {
+            Protocol easyHttps = new Protocol("https", ProtocolSocketFactory)new EasySSLProtocolSocketFactory(), 443);
+            host.setHost(host, 443, easyHttps);
+        }
+        return host;
     }
 
     private static void setClientProxyParams(String host, HttpClient client) {

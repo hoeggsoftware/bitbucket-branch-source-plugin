@@ -37,7 +37,8 @@ public abstract class BitbucketApiFactory implements ExtensionPoint {
     protected abstract BitbucketApi create(@Nullable String serverUrl,
                                            @Nullable StandardUsernamePasswordCredentials credentials,
                                            @NonNull String owner,
-                                           @CheckForNull String repository);
+                                           @CheckForNull String repository,
+                                           boolean skipVerifySsl);
 
     /**
      * Creates a {@link BitbucketApi} for the specified URL with the supplied credentials, owner and (optional)
@@ -47,7 +48,7 @@ public abstract class BitbucketApiFactory implements ExtensionPoint {
      * @param credentials the (optional) credentials.
      * @param owner       the owner name.
      * @param repository  the (optional) repository name.
-     * @param skipVerifySsl
+     * @param skipVerifySsl the (optional) skipVerifySsl flag.
      * @return the {@link BitbucketApi}.
      * @throws IllegalArgumentException if the supplied URL is not supported.
      */
@@ -55,10 +56,11 @@ public abstract class BitbucketApiFactory implements ExtensionPoint {
     public static BitbucketApi newInstance(@Nullable String serverUrl,
                                            @Nullable StandardUsernamePasswordCredentials credentials,
                                            @NonNull String owner,
-                                           @CheckForNull String repository, boolean skipVerifySsl) {
+                                           @CheckForNull String repository,
+                                           boolean skipVerifySsl) {
         for (BitbucketApiFactory factory : ExtensionList.lookup(BitbucketApiFactory.class)) {
             if (factory.isMatch(serverUrl)) {
-                return factory.create(serverUrl, credentials, owner, repository);
+                return factory.create(serverUrl, credentials, owner, repository, skipVerifySsl);
             }
         }
         throw new IllegalArgumentException("Unsupported Bitbucket server URL: " + serverUrl);
