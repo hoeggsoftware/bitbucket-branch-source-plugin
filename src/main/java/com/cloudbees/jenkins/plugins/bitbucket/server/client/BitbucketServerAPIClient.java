@@ -45,8 +45,6 @@ import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.NameValuePair;
 import org.apache.commons.httpclient.UsernamePasswordCredentials;
 import org.apache.commons.httpclient.URIException;
-import org.apache.commons.httpclient.auth.AuthScope;
-import org.apache.commons.httpclient.contrib.ssl.EasySSLProtocolSocketFactory;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.PostMethod;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
@@ -144,16 +142,15 @@ public class BitbucketServerAPIClient implements BitbucketApi {
     private boolean skipVerifySsl = false;
 
     /**
-     * Credentials to access API services.
-     * Almost @NonNull (but null is accepted for anonymous access).
+     * HttpClient to use in requests
      */
-    private UsernamePasswordCredentials credentials;
+    private HttpClient client;
 
     private String baseURL;
 
     public BitbucketServerAPIClient(String baseURL, String owner, String repositoryName, StandardUsernamePasswordCredentials creds, boolean userCentric, boolean skipVerifySsl) {
         if (creds != null) {
-            this.credentials = new UsernamePasswordCredentials(creds.getUsername(), Secret.toString(creds.getPassword()));
+            this.client = new BitBucketServerHttpClient(baseURL, new UsernamePasswordCredentials(creds.getUsername(), Secret.toString(creds.getPassword())), skipVerifySsl).getHttpClient();
         }
         this.userCentric = userCentric;
         this.owner = owner;
@@ -493,10 +490,8 @@ public class BitbucketServerAPIClient implements BitbucketApi {
 
     private String getRequest(String path) throws IOException {
         GetMethod httpget = new GetMethod(this.baseURL + path);
-        HostConfiguration hostConfigration = getHostConfiguration(getMethodHost(httpget), skipVerifySsl);
-        HttpClient client = getHttpClient(getMethodHost(httpget));
         try {
-            client.executeMethod(hostConfigration, httpget);
+            client.executeMethod(httpget);
             String response = new String(httpget.getResponseBody(), "UTF-8");
             if (httpget.getStatusCode() == HttpStatus.SC_NOT_FOUND) {
                 throw new FileNotFoundException("URL: " + path);
@@ -512,59 +507,11 @@ public class BitbucketServerAPIClient implements BitbucketApi {
         } finally {
             httpget.releaseConnection();
         }
-    }
 
-    private HttpClient getHttpClient(String host) {
-        HttpClient client = new HttpClient();
-
-        client.getParams().setConnectionManagerTimeout(10 * 1000);
-        client.getParams().setSoTimeout(60 * 1000);
-
-        client.getState().setCredentials(AuthScope.ANY, credentials);
-        client.getParams().setAuthenticationPreemptive(true);
-
-        setClientProxyParams(host, client);
-        return client;
-    }
-
-    private HostConfiguration getHostConfiguration(String host, boolean skipVerifySsl) {
-        HostConfiguration hostConfig = new HostConfiguration();
-        if (skipVerifySsl) {
-            Protocol easyHttps = new Protocol("https", new EasySSLProtocolSocketFactory(), 443);
-            hostConfig.setHost(host, 443, easyHttps);
-        }
-        return hostConfig;
-    }
-
-    private static void setClientProxyParams(String host, HttpClient client) {
-        Jenkins jenkins = Jenkins.getInstance();
-        ProxyConfiguration proxyConfig = null;
-        if (jenkins != null) {
-            proxyConfig = jenkins.proxy;
-        }
-
-        Proxy proxy = Proxy.NO_PROXY;
-        if (proxyConfig != null) {
-            proxy = proxyConfig.createProxy(host);
-        }
-
-        if (proxy.type() != Proxy.Type.DIRECT) {
-            final InetSocketAddress proxyAddress = (InetSocketAddress)proxy.address();
-            LOGGER.log(Level.FINE, "Jenkins proxy: {0}", proxy.address());
-            client.getHostConfiguration().setProxy(proxyAddress.getHostString(), proxyAddress.getPort());
-            String username = proxyConfig.getUserName();
-            String password = proxyConfig.getPassword();
-            if (username != null && !"".equals(username.trim())) {
-                LOGGER.log(Level.FINE, "Using proxy authentication (user={0})", username);
-                client.getState().setProxyCredentials(AuthScope.ANY,
-                    new UsernamePasswordCredentials(username, password));
-            }
-        }
     }
 
     private int getRequestStatus(String path) throws IOException {
         GetMethod httpget = new GetMethod(this.baseURL + path);
-        HttpClient client = getHttpClient(getMethodHost(httpget));
         try {
             client.executeMethod(httpget);
             return httpget.getStatusCode();
@@ -611,9 +558,6 @@ public class BitbucketServerAPIClient implements BitbucketApi {
     }
 
     private String doRequest(HttpMethod httppost) throws IOException {
-        HttpClient client = getHttpClient(getMethodHost(httppost));
-        client.getState().setCredentials(AuthScope.ANY, credentials);
-        client.getParams().setAuthenticationPreemptive(true);
         try {
             client.executeMethod(httppost);
             if (httppost.getStatusCode() == HttpStatus.SC_NO_CONTENT) {
